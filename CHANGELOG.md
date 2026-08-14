@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
 
 ### Changed
 
+
+- Relicense Dinglebear-owned original work under AGPL-3.0-only and document separate commercial licensing; third-party material retains its original terms.
+- Regenerate the committed Unraid package and release manifest from the pinned v2.1.0 assets, restoring byte-for-byte reproducibility across umask settings.
 - Allow Compose deployments to select the service env file with `YARR_ENV_FILE`.
 - Bind the production MCP port only to DEVHOST's Tailscale and LAN addresses instead of every host interface.
 

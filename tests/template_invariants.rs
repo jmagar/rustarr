@@ -31,6 +31,21 @@ fn json(path: &str) -> Value {
 }
 
 #[test]
+fn docker_builder_matches_pinned_rust_toolchain() {
+    let toolchain = read("rust-toolchain.toml");
+    let channel = toolchain
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("channel = \"")?.strip_suffix('"'))
+        .expect("rust-toolchain.toml should declare a quoted channel");
+    let dockerfile = read("config/Dockerfile");
+
+    assert!(
+        dockerfile.contains(&format!("FROM rust:{channel}-slim-bookworm@sha256:")),
+        "config/Dockerfile builder must use the exact pinned Rust toolchain {channel}"
+    );
+}
+
+#[test]
 fn agent_memory_files_are_claude_symlinks() {
     for path in ["AGENTS.md", "GEMINI.md"] {
         let target = fs::read_link(path).unwrap_or_else(|err| panic!("{path}: {err}"));
