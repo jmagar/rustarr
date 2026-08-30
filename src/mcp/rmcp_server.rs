@@ -14,7 +14,7 @@ use lab_auth::AuthContext;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
+        CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
         GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult,
         ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
         ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
@@ -32,6 +32,14 @@ use crate::{
 use crate::server::{AppState, AuthPolicy};
 
 use super::{elicit, prompts, schemas::tool_definitions, tools::execute_tool};
+
+/// SEP-2549 (`ttlMs`/`cacheScope`) is required on `tools/list`, `resources/list`,
+/// and `resources/read` for clients that negotiate MCP protocol version
+/// `2026-07-28` — omitting them (rmcp's `Default::default()` leaves both `None`,
+/// which then don't get serialized) makes a spec-strict client at that protocol
+/// version reject the whole result. These lists are derived from config loaded
+/// once at startup, so a 5-minute freshness hint is safe.
+const LIST_RESULT_TTL_MS: u64 = 300_000;
 
 // ── server ────────────────────────────────────────────────────────────────────
 
@@ -86,7 +94,9 @@ impl ServerHandler for YarrRmcpServer {
         Ok(ListToolsResult {
             tools,
             ..Default::default()
-        })
+        }
+        .with_ttl_ms(LIST_RESULT_TTL_MS)
+        .with_cache_scope(CacheScope::Public))
     }
 
     async fn call_tool(
@@ -188,7 +198,9 @@ impl ServerHandler for YarrRmcpServer {
         Ok(ListResourcesResult {
             resources: vec![schema_resource()],
             ..Default::default()
-        })
+        }
+        .with_ttl_ms(LIST_RESULT_TTL_MS)
+        .with_cache_scope(CacheScope::Public))
     }
 
     async fn read_resource(
@@ -209,6 +221,8 @@ impl ServerHandler for YarrRmcpServer {
         Ok(ReadResourceResult::new(vec![
             ResourceContents::text(text, SCHEMA_RESOURCE_URI).with_mime_type("application/json"),
         ])
+        .with_ttl_ms(LIST_RESULT_TTL_MS)
+        .with_cache_scope(CacheScope::Public)
         .into())
     }
 
